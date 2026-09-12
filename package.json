@@ -1,31 +1,17 @@
 {
-  "name": "ai-claims-automation",
-  "private": true,
+  "name": "ai-claims-monorepo",
   "version": "1.0.0",
-  "type": "module",
+  "private": true,
+  "description": "AI Autonomous Health Insurance Claims Engine with separate Frontend and Backend",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "canvas-confetti": "^1.9.4",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.475.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "recharts": "^2.15.1",
-    "tailwind-merge": "^2.6.0"
-  },
-  "devDependencies": {
-    "@types/canvas-confetti": "^1.9.0",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@vitejs/plugin-react": "^4.3.4",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev": "npx --yes concurrently -n \"frontend,backend\" -c \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "npm --prefix backend run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "preview:frontend": "npm --prefix frontend run preview -- --port 4173 --host",
+    "start:backend": "npm --prefix backend run start"
   }
 }
