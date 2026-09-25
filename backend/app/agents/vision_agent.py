@@ -258,20 +258,25 @@ class VisionAgent(BaseClaimAgent):
             all_issues = []
 
         # Penalize if pre-existing rust/aged damage anomaly was flagged
-        if any("rust oxidation" in iss for iss in all_issues):
+        has_forensic_anomaly = any("rust oxidation" in iss for iss in all_issues)
+        if has_forensic_anomaly:
             mean_iqa = min(mean_iqa, 0.61)
 
         final_confidence = round(mean_iqa, 4)
-        action = self.evaluate_confidence_action(
-            final_confidence,
-            retry_count=retry_count,
-            can_request_customer_evidence=True,
-        )
-        status = (
-            AgentStatusEnum.SUCCESS
-            if action == RecommendedActionEnum.CONTINUE
-            else AgentStatusEnum.NEED_MORE_EVIDENCE
-        )
+        if has_forensic_anomaly:
+            action = RecommendedActionEnum.ESCALATE
+            status = AgentStatusEnum.SUCCESS
+        else:
+            action = self.evaluate_confidence_action(
+                final_confidence,
+                retry_count=retry_count,
+                can_request_customer_evidence=True,
+            )
+            status = (
+                AgentStatusEnum.SUCCESS
+                if action == RecommendedActionEnum.CONTINUE
+                else AgentStatusEnum.NEED_MORE_EVIDENCE
+            )
 
         return AgentContractOutput(
             claim_id=claim_id,

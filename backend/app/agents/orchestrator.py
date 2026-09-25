@@ -13,6 +13,7 @@ from app.agents.vision_agent import vision_agent
 from app.agents.policy_agent import policy_agent
 from app.agents.fraud_agent import fraud_agent
 from app.agents.estimation_agent import estimation_agent
+from app.agents.decision_agent import decision_agent
 
 
 class DynamicClaimOrchestrator:
@@ -29,6 +30,7 @@ class DynamicClaimOrchestrator:
             "policy": policy_agent,
             "fraud": fraud_agent,
             "estimation": estimation_agent,
+            "decision": decision_agent,
         }
 
     def register_agent(self, name: str, agent_instance: Any) -> None:

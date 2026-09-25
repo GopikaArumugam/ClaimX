@@ -225,16 +225,20 @@ class DocumentAgent(BaseClaimAgent):
         mean_quality = float(np.mean(qualities)) if qualities else 0.85
         final_confidence = max(0.10, min(0.99, round(mean_quality - penalty, 4)))
 
-        action = self.evaluate_confidence_action(
-            final_confidence,
-            retry_count=retry_count,
-            can_request_customer_evidence=True,
-        )
-        status = (
-            AgentStatusEnum.SUCCESS
-            if action == RecommendedActionEnum.CONTINUE
-            else AgentStatusEnum.NEED_MORE_EVIDENCE
-        )
+        if len(consistency_issues) > 0:
+            action = RecommendedActionEnum.ESCALATE
+            status = AgentStatusEnum.SUCCESS
+        else:
+            action = self.evaluate_confidence_action(
+                final_confidence,
+                retry_count=retry_count,
+                can_request_customer_evidence=True,
+            )
+            status = (
+                AgentStatusEnum.SUCCESS
+                if action == RecommendedActionEnum.CONTINUE
+                else AgentStatusEnum.NEED_MORE_EVIDENCE
+            )
 
         return AgentContractOutput(
             claim_id=claim_id,
