@@ -1,17 +1,15 @@
 {
-  "name": "ai-claims-monorepo",
+  "name": "claimx-research-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "AI Autonomous Health Insurance Claims Engine with separate Frontend and Backend",
+  "description": "A Confidence-Aware Dynamically Orchestrated Multi-Agent Framework for End-to-End Insurance Claim Automation and Explainable Decision Support",
   "scripts": {
-    "install:all": "npm --prefix frontend install && npm --prefix backend install",
+    "install:all": "npm --prefix frontend install && pip install -r backend/requirements.txt",
     "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "npm --prefix backend run dev",
+    "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --port 5000",
     "dev": "npx --yes concurrently -n \"frontend,backend\" -c \"cyan,green\" \"npm run dev:frontend\" \"npm run dev:backend\"",
+    "test:backend": "cd backend && python -m pytest -v",
     "build:frontend": "npm --prefix frontend run build",
-    "build:backend": "npm --prefix backend run build",
-    "build": "npm run build:frontend && npm run build:backend",
-    "preview:frontend": "npm --prefix frontend run preview -- --port 4173 --host",
-    "start:backend": "npm --prefix backend run start"
+    "preview:frontend": "npm --prefix frontend run preview -- --port 4173 --host"
   }
 }

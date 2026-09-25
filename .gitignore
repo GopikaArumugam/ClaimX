@@ -1,7 +1,18 @@
-# Dependencies
+# Node & Frontend Dependencies
 node_modules/
 .pnp
 .pnp.js
+
+# Python & FastAPI Backend
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+*.db
+*.sqlite3
 
 # Production build outputs
 dist/
