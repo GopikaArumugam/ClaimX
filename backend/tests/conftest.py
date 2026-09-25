@@ -1,4 +1,3 @@
-import os
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -6,6 +5,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.main import create_app, seed_default_users
+from app.services.seed_claims import seed_default_policies_and_claims
 from app.db.base import Base
 from app.db.session import get_db
 
@@ -23,6 +23,7 @@ def test_db_session():
 
     session = TestingSessionLocal()
     seed_default_users(session)
+    seed_default_policies_and_claims(session)
     try:
         yield session
     finally:

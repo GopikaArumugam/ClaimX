@@ -10,16 +10,11 @@ from app.core.security import hash_password
 from app.db.session import init_db, SessionLocal
 from app.db.models import User, RoleEnum
 from app.schemas.common import HealthResponse
+from app.services.seed_claims import seed_default_policies_and_claims
 from app.api.v1.router import api_v1_router
 
 
 def seed_default_users(db: Session) -> None:
-    """
-    Ensure the 3 canonical RBAC personas exist in the database:
-    1. CUSTOMER: arun.kumar@gmail.com
-    2. CLAIM_HANDLER: anand.officer@aiclaims.internal
-    3. ADMIN: admin@aiclaims.internal
-    """
     default_accounts = [
         {
             "email": "arun.kumar@gmail.com",
@@ -62,11 +57,12 @@ def seed_default_users(db: Session) -> None:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    logger.info("Initializing ClaimX Database & RBAC Foundation...")
+    logger.info("Initializing ClaimX Database, RBAC, and Seed Evidence...")
     init_db()
     with SessionLocal() as db:
         seed_default_users(db)
-    logger.info("ClaimX Backend Foundation ready.")
+        seed_default_policies_and_claims(db)
+    logger.info("ClaimX Backend ready.")
     yield
 
 
@@ -102,6 +98,7 @@ def create_app() -> FastAPI:
         )
 
     app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+    app.include_router(api_v1_router, prefix="/api")
     return app
 
 
