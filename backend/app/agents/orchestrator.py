@@ -1,9 +1,7 @@
 from typing import Dict, Any, List, Optional
-from app.agents.contract import (
-    AgentContractOutput,
-    AgentStatusEnum,
-    RecommendedActionEnum,
-)
+from sqlalchemy.orm import Session
+from app.agents.base_agent import BaseClaimAgent
+from app.agents.contract import AgentContractOutput, RecommendedActionEnum
 from app.agents.state_machine import (
     ClaimLifecycleState,
     WorkflowExecutionState,
@@ -14,39 +12,42 @@ from app.agents.policy_agent import policy_agent
 from app.agents.fraud_agent import fraud_agent
 from app.agents.estimation_agent import estimation_agent
 from app.agents.decision_agent import decision_agent
+from app.services.audit_service import AuditService
 
 
 class DynamicClaimOrchestrator:
     """
-    Section 3, 4, 5, 23 (Stage 9): Dynamic Claim Orchestrator
-    Dynamically selects the next agent or workflow action based on current claim state,
-    available evidence, agent confidence outputs, and unresolved issues rather than a static pipeline.
+    Confidence-Aware Dynamically Orchestrated Multi-Agent Engine (Section 5 & Section 23 Stage 9).
+
+    Unlike a rigid static sequence (Document -> Vision -> Policy -> Fraud -> Estimation -> Decision),
+    the Dynamic Orchestrator inspects runtime claim context, intermediate agent outputs,
+    and confidence scores at each step to:
+    1. Dynamically prune unnecessary downstream agents when a deterministic disqualifier occurs
+       (e.g., Policy Agent returns STOP on an expired policy -> Fraud & Estimation are skipped).
+    2. Pause downstream execution and transition to AWAITING_CUSTOMER when an upstream perception
+       agent (Vision or Document) returns REQUEST_EVIDENCE due to low quality/confidence.
+    3. Re-invoke specific agents upon customer evidence upload without re-running already-verified agents.
+    4. Persist structured Section 17 audit trail events when a DB session (`db`) is provided.
     """
 
-    def __init__(self):
-        self.agents = {
+    def __init__(self, custom_agents: Optional[Dict[str, BaseClaimAgent]] = None):
+        self.agents: Dict[str, BaseClaimAgent] = custom_agents or {
+            "policy": policy_agent,
             "document": document_agent,
             "vision": vision_agent,
-            "policy": policy_agent,
             "fraud": fraud_agent,
             "estimation": estimation_agent,
             "decision": decision_agent,
         }
 
-    def register_agent(self, name: str, agent_instance: Any) -> None:
-        self.agents[name] = agent_instance
-
     def select_next_step(
-        self,
-        wf_state: WorkflowExecutionState,
-        context: Dict[str, Any],
+        self, wf_state: WorkflowExecutionState, context: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Evaluates current WorkflowExecutionState and determines the next dynamic action:
-        Returns {"action": "DISPATCH_AGENT" | "PAUSE_FOR_EVIDENCE" | "ESCALATE_HUMAN" | "TERMINATE_PRUNED" | "READY_FOR_DECISION",
+        Inspects current workflow state and returns the next orchestration decision:
+        Returns: {"action": "DISPATCH_AGENT" | "PAUSE_FOR_EVIDENCE" | "TERMINATE_PRUNED" | "READY_FOR_DECISION",
                  "target_agent": Optional[str], "reason": str}
         """
-        # 1. Check if any completed agent triggered deterministic STOP (e.g., Expired Policy pruning)
         for agent_name, out in wf_state.agent_outputs.items():
             if out.get("recommended_action") == RecommendedActionEnum.STOP.value:
                 return {
@@ -55,11 +56,9 @@ class DynamicClaimOrchestrator:
                     "reason": f"Agent '{agent_name}' returned STOP ({'; '.join(out.get('issues', []))}). Dynamically pruning downstream agents.",
                 }
 
-        # 2. Check if any perception agent requires customer evidence before downstream analysis
         for agent_name in ("document", "vision"):
             out = wf_state.agent_outputs.get(agent_name)
             if out and out.get("recommended_action") == RecommendedActionEnum.REQUEST_EVIDENCE.value:
-                # Only pause if customer has not yet uploaded clarified evidence for this step
                 if not context.get("clarified_photo_uploaded") and wf_state.retry_counts.get(agent_name, 0) == 0:
                     return {
                         "action": "PAUSE_FOR_EVIDENCE",
@@ -67,7 +66,6 @@ class DynamicClaimOrchestrator:
                         "reason": f"Agent '{agent_name}' confidence ({out.get('confidence')}) below threshold. Pausing pipeline to request additional evidence from policyholder.",
                     }
 
-        # 3. Dynamic Priority 1: Policy eligibility check first if policy status is suspect or not yet verified
         if "policy" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -75,7 +73,6 @@ class DynamicClaimOrchestrator:
                 "reason": "Dispatching Policy Agent first to verify active coverage and avoid unnecessary perception/ML compute on invalid policies.",
             }
 
-        # 4. Dynamic Priority 2: Document verification
         if "document" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -83,7 +80,6 @@ class DynamicClaimOrchestrator:
                 "reason": "Policy verified active; dispatching Document Agent for OCR & cross-document consistency validation.",
             }
 
-        # 5. Dynamic Priority 3: Vision damage assessment (or retry if clarified photo arrived)
         if "vision" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -91,7 +87,6 @@ class DynamicClaimOrchestrator:
                 "reason": "Dispatching Vision Agent for NR-IQA quality assessment, bounding-box localization, and dHash extraction.",
             }
 
-        # 6. Dynamic Priority 4: Fraud risk assessment (depends on document & vision signals)
         if "fraud" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -99,7 +94,6 @@ class DynamicClaimOrchestrator:
                 "reason": "Perception & Policy outputs available; dispatching Fraud Agent with cross-document and dHash features.",
             }
 
-        # 7. Dynamic Priority 5: Repair cost estimation (depends on vision damage detections & policy deductible)
         if "estimation" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -107,7 +101,6 @@ class DynamicClaimOrchestrator:
                 "reason": "Dispatching Estimation Agent to compute OEM parts & labor baseline against claimed amount.",
             }
 
-        # 8. All prerequisite evidence gathered -> Ready for Decision Agent (or direct dispatch if registered)
         if "decision" in self.agents and "decision" not in wf_state.completed_agents:
             return {
                 "action": "DISPATCH_AGENT",
@@ -126,6 +119,7 @@ class DynamicClaimOrchestrator:
         claim_id: str,
         context: Dict[str, Any],
         wf_state: Optional[WorkflowExecutionState] = None,
+        db: Optional[Session] = None,
     ) -> WorkflowExecutionState:
         """
         Executes the state-driven orchestration loop until a terminal state,
@@ -136,7 +130,18 @@ class DynamicClaimOrchestrator:
             current_state=ClaimLifecycleState.ORCHESTRATING,
         )
 
-        # If resuming with clarified customer photo, mark vision for re-execution
+        if db is not None:
+            AuditService.record_event(
+                db=db,
+                claim_id=claim_id,
+                agent="Orchestrator",
+                action="WORKFLOW_STARTED",
+                result_summary="Dynamic confidence-aware orchestration loop initialized.",
+                confidence=1.0,
+                reason="State-driven multi-agent routing active",
+                next_action="Evaluate dynamic policy & perception priority",
+            )
+
         if context.get("clarified_photo_uploaded") and "vision" in state.completed_agents:
             vision_prev = state.agent_outputs.get("vision", {})
             if vision_prev.get("recommended_action") == RecommendedActionEnum.REQUEST_EVIDENCE.value:
@@ -147,6 +152,17 @@ class DynamicClaimOrchestrator:
                     "event": "Customer uploaded replacement daylight photograph; re-dispatching Vision Agent.",
                     "previous_confidence": vision_prev.get("confidence"),
                 })
+                if db is not None:
+                    AuditService.record_event(
+                        db=db,
+                        claim_id=claim_id,
+                        agent="Vision Agent",
+                        action="REPROCESS",
+                        result_summary="Customer uploaded replacement daylight photograph; re-dispatching Vision Agent.",
+                        confidence=vision_prev.get("confidence"),
+                        reason="Confidence-aware evidence recovery triggered",
+                        next_action="Re-run Vision Agent on clarified evidence",
+                    )
 
         max_steps = 12
         steps_taken = 0
@@ -159,14 +175,35 @@ class DynamicClaimOrchestrator:
             if act == "TERMINATE_PRUNED":
                 state.current_state = ClaimLifecycleState.REJECTED
                 state.is_terminated = True
+                if db is not None:
+                    AuditService.record_event(
+                        db=db,
+                        claim_id=claim_id,
+                        agent="Orchestrator",
+                        action="TERMINATE_PRUNED",
+                        result_summary=decision["reason"],
+                        confidence=1.0,
+                        reason="Deterministic STOP signal received",
+                        next_action="Transition claim to REJECTED",
+                    )
                 break
 
             if act == "PAUSE_FOR_EVIDENCE":
                 state.current_state = ClaimLifecycleState.AWAITING_CUSTOMER
+                if db is not None:
+                    AuditService.record_event(
+                        db=db,
+                        claim_id=claim_id,
+                        agent="Orchestrator",
+                        action="PAUSE_FOR_EVIDENCE",
+                        result_summary=decision["reason"],
+                        confidence=None,
+                        reason="Perception confidence below threshold",
+                        next_action="Transition claim to AWAITING_CUSTOMER",
+                    )
                 break
 
             if act == "READY_FOR_DECISION":
-                # If Decision Agent is not yet registered, evaluate escalate vs assessing
                 has_escalation = any(
                     out.get("recommended_action") == RecommendedActionEnum.ESCALATE.value
                     for out in state.agent_outputs.values()
@@ -196,7 +233,27 @@ class DynamicClaimOrchestrator:
                         if iss not in state.unresolved_issues:
                             state.unresolved_issues.append(iss)
 
-                # If Decision Agent just ran, update lifecycle state accordingly
+                if db is not None:
+                    AuditService.record_event(
+                        db=db,
+                        claim_id=claim_id,
+                        agent=f"{target.capitalize()} Agent",
+                        action=contract_out.recommended_action.value,
+                        evidence_refs=contract_out.evidence,
+                        result_summary=str(
+                            contract_out.result.get("summary")
+                            or contract_out.result.get("explanation")
+                            or f"Completed {target} evaluation"
+                        )[:240],
+                        confidence=contract_out.confidence,
+                        reason=(
+                            f"Issues: {'; '.join(contract_out.issues[:2])}"
+                            if contract_out.issues
+                            else f"Confidence {contract_out.confidence:.2f} satisfies agent threshold"
+                        ),
+                        next_action=contract_out.recommended_action.value,
+                    )
+
                 if target == "decision":
                     rec = contract_out.result.get("final_recommendation", "HUMAN_REVIEW")
                     if rec == "APPROVE":
