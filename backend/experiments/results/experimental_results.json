@@ -1,0 +1,274 @@
+{
+  "experiment_suite_version": "ClaimX-Research-v1.0",
+  "random_seed": 42,
+  "experiment_1_static_vs_dynamic_orchestration": {
+    "cohort_size": 100,
+    "static_pipeline_agent_invocations": 600,
+    "dynamic_orchestrator_initial_invocations": 480,
+    "agent_invocation_savings_percent": 20.0,
+    "expired_policy_claims_pruned_early": 15,
+    "low_quality_claims_paused_before_downstream": 15,
+    "avg_dynamic_workflow_wall_time_ms": 7.45
+  },
+  "experiment_2_confidence_recovery_ablation": {
+    "low_confidence_claims_evaluated": 15,
+    "without_recovery_autonomous_resolution_rate_pct": 0.0,
+    "with_recovery_autonomous_resolution_rate_pct": 100.0,
+    "mean_vision_confidence_before_recovery": 0.29,
+    "mean_vision_confidence_after_recovery": 0.94,
+    "mean_confidence_gain_delta": 0.65
+  },
+  "experiment_3_agent_model_comparisons": {
+    "document_classification_models": {
+      "MultinomialNB": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "latency_ms": 1.023
+      },
+      "LogisticRegression": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "latency_ms": 5.169
+      },
+      "LinearSVC": {
+        "accuracy": 1.0,
+        "precision_macro": 1.0,
+        "recall_macro": 1.0,
+        "f1_macro": 1.0,
+        "latency_ms": 1.142
+      }
+    },
+    "vision_damage_severity_models": {
+      "SVM_RBF_Classifier": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0,
+        "latency_ms": 1.806,
+        "evaluation_type": "EXPERIMENTAL_RESULT_ON_ROI_FEATURE_BENCHMARK"
+      },
+      "RandomForest_Vision_Head": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0,
+        "latency_ms": 40.843,
+        "evaluation_type": "EXPERIMENTAL_RESULT_ON_ROI_FEATURE_BENCHMARK"
+      },
+      "MLP_Neural_Head": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "accuracy": 1.0,
+        "latency_ms": 95.366,
+        "evaluation_type": "EXPERIMENTAL_RESULT_ON_ROI_FEATURE_BENCHMARK"
+      }
+    },
+    "policy_rag_retrieval_models": {
+      "Lexical_TFIDF": {
+        "recall_at_1": 1.0,
+        "mrr_at_3": 1.0,
+        "latency_ms": 5.228
+      },
+      "Dense_Semantic_SVD": {
+        "recall_at_1": 1.0,
+        "mrr_at_3": 1.0,
+        "latency_ms": 3.597
+      },
+      "Hybrid_Dense_Lexical": {
+        "recall_at_1": 1.0,
+        "mrr_at_3": 1.0,
+        "latency_ms": 4.39
+      }
+    },
+    "fraud_imbalanced_classification_models": {
+      "LogisticRegression_Balanced": {
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "brier_calibration_loss": 0.0035,
+        "confusion_matrix": {
+          "tn": 82,
+          "fp": 0,
+          "fn": 0,
+          "tp": 18
+        },
+        "latency_ms": 12.322
+      },
+      "RandomForest_Balanced": {
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "brier_calibration_loss": 0.0002,
+        "confusion_matrix": {
+          "tn": 82,
+          "fp": 0,
+          "fn": 0,
+          "tp": 18
+        },
+        "latency_ms": 125.649
+      },
+      "GradientBoosting_Tree": {
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "brier_calibration_loss": 0.0,
+        "confusion_matrix": {
+          "tn": 82,
+          "fp": 0,
+          "fn": 0,
+          "tp": 18
+        },
+        "latency_ms": 40.66
+      },
+      "HistGradientBoosting_LGBM_Style": {
+        "pr_auc": 1.0,
+        "roc_auc": 1.0,
+        "f1": 1.0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "brier_calibration_loss": 0.0,
+        "confusion_matrix": {
+          "tn": 82,
+          "fp": 0,
+          "fn": 0,
+          "tp": 18
+        },
+        "latency_ms": 2343.883
+      }
+    },
+    "repair_cost_regression_models": {
+      "Linear_Ridge_Regression": {
+        "mae_inr": 1403.94,
+        "rmse_inr": 1762.72,
+        "r2_score": 0.9987,
+        "mape_pct": 2.65,
+        "latency_ms": 1.818
+      },
+      "RandomForest_Regressor": {
+        "mae_inr": 1454.02,
+        "rmse_inr": 2039.54,
+        "r2_score": 0.9982,
+        "mape_pct": 2.77,
+        "latency_ms": 120.742
+      },
+      "GradientBoosting_Regressor": {
+        "mae_inr": 1368.79,
+        "rmse_inr": 1777.34,
+        "r2_score": 0.9987,
+        "mape_pct": 2.65,
+        "latency_ms": 62.361
+      },
+      "HistGradientBoosting_Regressor": {
+        "mae_inr": 2714.33,
+        "rmse_inr": 5175.14,
+        "r2_score": 0.9886,
+        "mape_pct": 4.06,
+        "latency_ms": 158.577
+      }
+    }
+  },
+  "experiment_4_threshold_sensitivity_analysis": [
+    {
+      "confidence_threshold_tau": 0.5,
+      "autonomous_approval_rate_pct": 55.0,
+      "confidence_recovery_trigger_rate_pct": 15.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    },
+    {
+      "confidence_threshold_tau": 0.6,
+      "autonomous_approval_rate_pct": 55.0,
+      "confidence_recovery_trigger_rate_pct": 15.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    },
+    {
+      "confidence_threshold_tau": 0.7,
+      "autonomous_approval_rate_pct": 55.0,
+      "confidence_recovery_trigger_rate_pct": 15.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    },
+    {
+      "confidence_threshold_tau": 0.75,
+      "autonomous_approval_rate_pct": 0.0,
+      "confidence_recovery_trigger_rate_pct": 70.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    },
+    {
+      "confidence_threshold_tau": 0.8,
+      "autonomous_approval_rate_pct": 0.0,
+      "confidence_recovery_trigger_rate_pct": 70.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    },
+    {
+      "confidence_threshold_tau": 0.9,
+      "autonomous_approval_rate_pct": 0.0,
+      "confidence_recovery_trigger_rate_pct": 70.0,
+      "human_escalation_rate_pct": 15.0,
+      "early_rejection_rate_pct": 15.0,
+      "false_autonomous_approval_rate_pct": 0.0
+    }
+  ],
+  "experiment_5_human_escalation_attribution": {
+    "fraud_risk_exceeds_threshold": 0,
+    "payout_exceeds_autonomous_ceiling": 35,
+    "cross_document_vin_discrepancy": 30
+  },
+  "experiment_6_agent_latency_profile": {
+    "policy": {
+      "invocations": 100,
+      "mean_ms": 1.513,
+      "median_ms": 1.365,
+      "p95_ms": 2.911
+    },
+    "document": {
+      "invocations": 85,
+      "mean_ms": 1.323,
+      "median_ms": 1.13,
+      "p95_ms": 2.91
+    },
+    "vision": {
+      "invocations": 85,
+      "mean_ms": 1.256,
+      "median_ms": 1.02,
+      "p95_ms": 2.51
+    },
+    "fraud": {
+      "invocations": 70,
+      "mean_ms": 4.708,
+      "median_ms": 4.095,
+      "p95_ms": 8.75
+    },
+    "estimation": {
+      "invocations": 70,
+      "mean_ms": 0.237,
+      "median_ms": 0.18,
+      "p95_ms": 0.392
+    },
+    "decision": {
+      "invocations": 70,
+      "mean_ms": 0.076,
+      "median_ms": 0.06,
+      "p95_ms": 0.162
+    }
+  }
+}

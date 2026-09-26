@@ -273,3 +273,15 @@ def seed_default_policies_and_claims(db: Session) -> None:
         ]
         db.add_all(seed_claims)
         db.commit()
+    else:
+        # Ensure canonical initial states on startup for deterministic reproducibility
+        canonical_states = {
+            "CLM-2026-01842": "APPROVED",
+            "CLM-2026-01775": "AWAITING_CUSTOMER",
+            "CLM-2026-01903": "HUMAN_REVIEW",
+        }
+        for cid, st in canonical_states.items():
+            c = db.query(Claim).filter(Claim.claim_id == cid).first()
+            if c:
+                c.status = st
+        db.commit()
