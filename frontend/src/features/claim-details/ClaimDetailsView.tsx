@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Claim, ClaimDocument } from '../../types/claims';
+import { claimsService, isTerminalClaimState } from '../../services/claimsService';
 import { StatusBadge, RiskBadge, ConfidenceMeter, Modal } from '@/components/ui';
 import {
   FileText,
@@ -41,10 +42,26 @@ export const ClaimDetailsView: React.FC<ClaimDetailsViewProps> = ({
   onProcessPayment,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'documents' | 'damage' | 'fraud' | 'estimation' | 'decision' | 'activity'
+    'overview' | 'documents' | 'damage' | 'fraud' | 'estimation' | 'decision' | 'activity' | 'report'
   >('overview');
   const [previewDocument, setPreviewDocument] = useState<ClaimDocument | null>(null);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+
+  const isTerminal = isTerminalClaimState(claim.status);
+  const finalReport = isTerminal ? claimsService.buildClientFinalReport(claim) : null;
+
+  const handleDownloadFinalReport = () => {
+    if (!finalReport) return;
+    const blob = new Blob([JSON.stringify(finalReport, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${finalReport.report_id}_Final_Assessment_Report.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const tabs = [
     { id: 'overview' as const, label: 'Overview', icon: FileText },
@@ -54,6 +71,7 @@ export const ClaimDetailsView: React.FC<ClaimDetailsViewProps> = ({
     { id: 'estimation' as const, label: 'Estimation', icon: Calculator },
     { id: 'decision' as const, label: 'Decision', icon: CheckCircle2 },
     { id: 'activity' as const, label: 'Activity Feed', icon: Clock },
+    { id: 'report' as const, label: isTerminal ? 'Final Report (Ready)' : 'Final Report (Locked)', icon: Download },
   ];
 
   // Estimation comparison data for Recharts
@@ -738,6 +756,95 @@ export const ClaimDetailsView: React.FC<ClaimDetailsViewProps> = ({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* TAB 8: FINAL CLAIM ASSESSMENT REPORT (SECTION 16 — TERMINAL STATE ONLY) */}
+      {activeTab === 'report' && (
+        <div className="bg-white rounded-2xl p-6 border border-plum-soft/80 shadow-soft animate-slide-up space-y-6">
+          {!isTerminal || !finalReport ? (
+            <div className="p-6 rounded-2xl bg-amber-50/80 border border-amber-300 flex items-start gap-4">
+              <AlertTriangle className="w-7 h-7 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-2">
+                <h3 className="text-base font-extrabold text-plum-deep">
+                  Section 16 Guardrail: Final Claim Assessment Report Locked (Non-Terminal State)
+                </h3>
+                <p className="text-xs text-ink-primary leading-relaxed">
+                  Per architectural protocol, the Final Claim Assessment Report is strictly prohibited from being generated while a claim is in an active or intermediate state (current state:{' '}
+                  <span className="font-mono font-bold text-amber-800">{claim.status}</span>).
+                </p>
+                <p className="text-xs text-ink-secondary">
+                  Allowed terminal states: <span className="font-mono font-semibold">APPROVED</span>,{' '}
+                  <span className="font-mono font-semibold">REJECTED</span>,{' '}
+                  <span className="font-mono font-semibold">HUMAN_REVIEW_COMPLETED</span>, or{' '}
+                  <span className="font-mono font-semibold">PAID</span>.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-plum-soft">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-mono text-xs font-bold">
+                      {finalReport.report_id}
+                    </span>
+                    <span className="text-xs font-semibold text-ink-secondary">
+                      Terminal State Verified: <strong className="text-plum-deep">{finalReport.terminal_state}</strong>
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-extrabold text-plum-deep mt-1">
+                    Final Claim Assessment & Regulatory Provenance Dossier
+                  </h3>
+                </div>
+                <button
+                  onClick={handleDownloadFinalReport}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-plum-deep text-white hover:bg-plum-secondary text-xs font-bold shadow-soft transition-all"
+                >
+                  <Download className="w-4 h-4 text-peach-primary" />
+                  <span>Export 9-Section JSON Report</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                <div className="p-4 rounded-xl bg-ivory-warm border border-plum-soft">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                    Section 1 • Claim & Financial Summary
+                  </span>
+                  <div className="font-bold text-plum-deep">
+                    Payable Settlement: ₹{finalReport.section_1_claim_summary.approved_payable_amount_inr.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-ink-secondary mt-1">
+                    Claimed: ₹{finalReport.section_1_claim_summary.claimed_amount_inr.toLocaleString('en-IN')} • Deductible: ₹{finalReport.section_1_claim_summary.deductible_inr.toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-ivory-warm border border-plum-soft">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                    Section 5 & 6 • Policy & Fraud Verification
+                  </span>
+                  <div className="font-bold text-plum-deep">
+                    Policy {finalReport.section_5_policy_coverage_analysis.policy_number} ({finalReport.section_5_policy_coverage_analysis.policy_status})
+                  </div>
+                  <div className="text-ink-secondary mt-1">
+                    Fraud Risk Score: {(finalReport.section_6_fraud_risk_analysis.fraud_risk_score * 100).toFixed(1)}% ({finalReport.section_6_fraud_risk_analysis.risk_band})
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-ivory-warm border border-plum-soft">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-ink-muted block mb-1">
+                    Section 4 & 8 • Confidence & Decision
+                  </span>
+                  <div className="font-bold text-plum-deep">
+                    Aggregate AI Confidence: {(finalReport.section_1_claim_summary.overall_ai_confidence * 100).toFixed(1)}%
+                  </div>
+                  <div className="text-ink-secondary mt-1">
+                    Recovery Invocations: {finalReport.section_4_confidence_and_recovery_history.recovery_invocations_count} • Audit Events: {finalReport.section_9_complete_audit_timeline.length}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
